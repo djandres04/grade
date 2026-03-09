@@ -2,16 +2,16 @@
 #include <Wire.h>
 
 // Include the new modular header files
-#include "bh1750_sensor.h"
-#include "am2315c_sensor.h"
-#include "sen0913_sensor.h"
-#include "data_formatter.h"
+#include "./sensor/bh1750_sensor.h"
+#include "./sensor/am2315c_sensor.h"
+#include "./sensor/sen0913_sensor.h"
+#include "./data/data_formatter.h"
 
 // --- Configuration ---
 
 // Define the pin for the analog soil moisture sensor
-// GPIO 34 is a good choice as it's an ADC1 pin on many ESP32 boards.
-const int SOIL_MOISTURE_PIN = 34;
+// GPIO 36 is a good choice as it's an ADC1 pin on many ESP32 boards.
+const int SOIL_MOISTURE_PIN = 36;
 
 // Variable to hold the measurement interval in milliseconds.
 // This can be changed dynamically (e.g., via MQTT or HTTP later).
@@ -40,7 +40,7 @@ void setup() {
 void loop() {
   // Use a non-blocking delay to check if it's time to take a new measurement.
   // This approach keeps the loop() responsive for other tasks in the future.
-  if (millis() - lastMeasurementTime >= measurementInterval) {
+  if (millis() - lastMeasurementTime >= measurementInterval)
     // Update the last measurement time.
     lastMeasurementTime = millis();
 
@@ -59,6 +59,3 @@ void loop() {
     Serial.println("--- New Measurement ---");
     Serial.println(json_data);
   }
-
-  // You can add other non-blocking tasks here.
-}
