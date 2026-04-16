@@ -3,13 +3,21 @@
 
 #include <Adafruit_AHTX0.h>
 
-// Function to initialize the AM2315C/AHT sensor.
-// Assumes Wire.begin() has been called in the main setup.
+// Inicializa el sensor AM2315C/AHT.
+// Asume que Wire.begin() ya se llamó en setup().
 void init_am2315c();
 
-// Function to read temperature and humidity from the sensor.
-// It returns true on a successful read, false otherwise.
-// The values are returned via the reference parameters.
+// Lee temperatura y humedad del sensor.
+// Devuelve true si la lectura fue exitosa, false en caso contrario.
+// Los valores se retornan a través de parámetros por referencia.
 bool read_am2315c(float &temperature, float &humidity);
+
+// Establece valores de calibración para temperatura y humedad.
+// tempOffset/humOffset son correcciones aditivas.
+// tempScale/humScale son ajustes multiplicativos.
+void set_am2315c_calibration(float tempOffset, float tempScale, float humOffset, float humScale);
+
+// Lee temperatura y humedad calibradas.
+bool read_am2315c_calibrated(float &temperature, float &humidity);
 
 #endif // AM2315C_SENSOR_H
