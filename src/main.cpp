@@ -6,6 +6,15 @@
 #include "./sensor/am2315c_sensor.h"
 #include "./sensor/sen0913_sensor.h"
 #include "./data/data_formatter.h"
+#include "wifi_manager.h"
+#include "http_client.h"
+
+// --- Configuración de WiFi ---
+const char* WIFI_SSID = "MERCUSYS";
+const char* WIFI_PASSWORD = "plaztilina2023";
+
+// --- Configuración del Servidor ---
+const char* SERVER_URL = "http://192.168.0.99:8080"; // <-- AQUÍ INDICASTE TU URL
 
 // --- Configuration ---
 
@@ -27,6 +36,9 @@ void setup() {
   // Start the I2C bus. This is required for the BH1750 and AM2315C sensors.
   Wire.begin();
 
+  // Conectar a la red WiFi
+  setup_wifi(WIFI_SSID, WIFI_PASSWORD);
+
   Serial.println("Initializing all sensors...");
 
   // Initialize all sensors using the functions from the new modules.
@@ -40,7 +52,7 @@ void setup() {
 void loop() {
   // Use a non-blocking delay to check if it's time to take a new measurement.
   // This approach keeps the loop() responsive for other tasks in the future.
-  if (millis() - lastMeasurementTime >= measurementInterval)
+  if (millis() - lastMeasurementTime >= measurementInterval) {
     // Update the last measurement time.
     lastMeasurementTime = millis();
 
@@ -58,4 +70,8 @@ void loop() {
     // In a future step, this string can be sent over MQTT or an HTTP POST request.
     Serial.println("--- New Measurement ---");
     Serial.println(json_data);
+
+    // Enviar los datos al servidor configurado
+    send_json_to_server(SERVER_URL, json_data);
   }
+}
