@@ -14,7 +14,7 @@
 
 // --- Configuración de WiFi ---
 const char* WIFI_SSID = "xxxxxx";
-const char* WIFI_PASSWORD = "xxxxxxx";
+const char* WIFI_PASSWORD = "";  // Vacío para WiFi abierta, o usar setup_wifi_wps() para WPS
 
 // --- Configuración del Servidor ---
 const char* API_BASE_URL = "https://aeronic.herokuapp.com/api/telemetry/";
@@ -26,12 +26,15 @@ const char* ROOT_CA = \
 "xxxxxxxxxxxxxxxx/xxxxxxxxxxxx\n" \
 "xxxxxxxxxxxxxxxxxxxxxxx\n" \
 "-----END CERTIFICATE-----\n";
-
-WiFiClientSecure secureClient;
+WiFiClientSecure client;
 
 // --- Configuración de Hardware ---
 const int LED_PIN = 13;
 const int SOIL_MOISTURE_PIN = 36;
+
+const int umbral_prc = 50; // Umbral de humedad del suelo en porcentaje para activar alertas o acciones
+const int BOMBA_RELAY_PIN = 12; // Pin para controlar una bomba de riego
+bool bomba_activa = false; // Estado actual de la bomba: true=encendida, false=apagada
 
 // Patrones LED
 enum LedPattern { LED_OFF, LED_SOLID, LED_BLINK_SLOW, LED_BLINK_FAST, LED_BLINK_RESTART };
@@ -75,7 +78,7 @@ void ledService() {
 }
 
 // Intervalo de medición en milisegundos (1 minuto)
-unsigned long measurementInterval = 60000; 
+unsigned long measurementInterval = 6000; 
 uint64_t lastMeasurementUs = 0;
 
 // Reinicio periódico preventivo
@@ -113,8 +116,8 @@ bool sendWithRetries(const String& fullUrl, const char* payload, int maxRetries 
     setLedPattern(LED_BLINK_FAST);
     
     HTTPClient http;
-    http.begin(secureClient, fullUrl);
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http.begin(client, fullUrl);
+    http.addHeader("Content-Type", "application/json");
 
     int httpResponseCode = http.POST(payload);
     
@@ -160,9 +163,15 @@ void setup() {
 
   pinMode(LED_PIN, OUTPUT);
   setLedPattern(LED_BLINK_FAST);
+  // Inicializar pin de la bomba y asegurar estado apagado
+  pinMode(BOMBA_RELAY_PIN, OUTPUT);
+  digitalWrite(BOMBA_RELAY_PIN, LOW);
 
+  setup_static_ip("192.168.0.160", "192.168.0.1", "255.255.255.0", "192.168.0.1");
   setup_wifi(WIFI_SSID, WIFI_PASSWORD);
-  secureClient.setCACert(ROOT_CA);
+  print_mac_address();
+  client.setCACert(ROOT_CA); // Esto le da el "pasaporte" de seguridad a la placa
+
 
   bootMillis = millis();
 
@@ -199,19 +208,30 @@ void loop() {
     int moisture_raw = read_sen0913();
     int moisture_percent = read_sen0913_percent();
 
+    // Control de la bomba según el umbral
+    if (moisture_percent < umbral_prc) {
+      bomba_activa = true; // Activar bomba
+    } else {
+      bomba_activa = false; // Desactivar bomba
+    }
+    digitalWrite(BOMBA_RELAY_PIN, bomba_activa ? HIGH : LOW);
+
     // Optimización del Heap usando snprintf y un buffer de char estático
-    char payloadBuffer[200];
-    snprintf(payloadBuffer, sizeof(payloadBuffer), 
-             "iluminacion_lux=%.2f&temperatura_c=%.2f&humedad_rh=%.2f&humedad_suelo_raw=%d&humedad_suelo_pct=%d", 
-             lux, temp, hum, moisture_raw, moisture_percent);
+    // --- Nueva versión estilo JSON (como tus compañeros) ---
+    String payload = "{\"Luz\":" + String(lux) + 
+                     ",\"Humedad\":" + String(hum) + 
+                     ",\"Temperatura\":" + String(temp) + 
+                     ",\"Suelo_pct\":" + String(moisture_percent) +
+                     ",\"bomba\":" + String(bomba_activa ? 1 : 0) + "}";
 
-    Serial.println("--- Nueva Medición ---");
-    Serial.println(payloadBuffer);
+    Serial.println("--- Nueva Medición (Formato JSON) ---");
+    Serial.println(payload);
 
-    String fullUrl = String(API_BASE_URL) + API_TOKEN;
+    String fullUrl = String(API_BASE_URL) + String(API_TOKEN);
     
     // Llamada a la función de envío (la propia función verifica el WiFi)
-    bool sent = sendWithRetries(fullUrl, payloadBuffer, 4, 10000);
+    // Cambiamos payloadBuffer por payload.c_str()
+    bool sent = sendWithRetries(fullUrl, payload.c_str(), 4, 10000);
     if (!sent) {
       Serial.println("Envío fallido. El dispositivo intentará de nuevo en el próximo ciclo.");
     }

@@ -2,8 +2,8 @@
 
 // Variable que guarda el número de pin del sensor
 static uint8_t _sen0913_pin = 0;
-static int _sen0913_dry_value = 4095;
-static int _sen0913_wet_value = 0;
+static int _sen0913_dry_value = 0;
+static int _sen0913_wet_value = 4095;
 
 void init_sen0913(uint8_t pin) {
     if (pin != 0) {
